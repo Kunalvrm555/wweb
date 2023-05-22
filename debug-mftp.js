@@ -68,28 +68,12 @@ app.post('/sendmessage/', async (req, res) => {
         message: req.body.message,
     };
     await client.sendMessage(chatId, data.message);
-    const chats = await client.getChats();
-    // console.log(chats);
-    chats.forEach(async (chat) => {
-        if (chat.isGroup) {
-            chat.sendMessage(data.message);
-            // console.log('sent to chat', chat.id);
-        }
-    });
     res.sendStatus(200);
 });
 
 const sendmedia = async (string_base64, caption_text) => {
     const media = new MessageMedia('application/pdf', string_base64, caption_text);
     await client.sendMessage(chatId, media, { caption: caption_text, sendMediaAsDocument: true });
-    const chats = await client.getChats();
-    //   console.log(chats);
-    chats.forEach(async (chat) => {
-        if (chat.isGroup) {
-            await chat.sendMessage(media, { caption: caption_text, sendMediaAsDocument: true });
-            console.log('sent to chat', chat.id);
-        }
-    });
 };
 
 app.post('/sendfile/', (req, res) => {
