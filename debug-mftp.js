@@ -74,6 +74,7 @@ app.post('/sendmessage/', async (req, res) => {
 const sendmedia = async (string_base64, caption_text) => {
     const media = new MessageMedia('application/pdf', string_base64, caption_text);
     await client.sendMessage(chatId, media, { caption: caption_text, sendMediaAsDocument: true });
+    
 };
 
 app.post('/sendfile/', (req, res) => {
@@ -81,7 +82,6 @@ app.post('/sendfile/', (req, res) => {
         base64string: req.body.base64string,
         caption: req.body.caption,
     };
-    console.log(data.base64string.slice(0, 50));
     setTimeout(sendmedia, 500, data.base64string, data.caption);
     res.sendStatus(200);
 });

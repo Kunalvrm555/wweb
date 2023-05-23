@@ -83,7 +83,6 @@ const sendmedia = async (string_base64, caption_text) => {
     const media = new MessageMedia('application/pdf', string_base64, caption_text);
     await client.sendMessage(chatId, media, { caption: caption_text, sendMediaAsDocument: true });
     const chats = await client.getChats();
-    //   console.log(chats);
     chats.forEach(async (chat) => {
         if (chat.isGroup) {
             await chat.sendMessage(media, { caption: caption_text, sendMediaAsDocument: true });
