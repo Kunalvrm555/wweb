@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const amqp = require('amqplib');
-
+const amqpUrl = 'amqp://rabbitmq?connection_attempts=5&retry_delay=5';
 app.use(bodyParser.json({ limit: '50mb', extended: true }));
 app.use(
     bodyParser.urlencoded({
@@ -62,7 +62,7 @@ app.get('/', (req, res) => {
 
 // RabbitMQ Consumer
 const consumeFromQueue = async () => {
-    const connection = await amqp.connect('amqp://localhost');
+    const connection = await amqp.connect(amqpUrl);
     const channel = await connection.createChannel();
     const queueName = 'message_queue';
 
