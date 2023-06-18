@@ -81,12 +81,13 @@ app.post('/sendmessage/', async (req, res) => {
 
 const sendmedia = async (string_base64, caption_text) => {
     const media = new MessageMedia('application/pdf', string_base64, caption_text);
-    await client.sendMessage(chatId, media, { caption: caption_text, sendMediaAsDocument: true });
+    media.filename = 'attachment.pdf';
+    await client.sendMessage(chatId, media, { caption: caption_text, attachment: media, sendMediaAsDocument: true });  
     const chats = await client.getChats();
     chats.forEach(async (chat) => {
         if (chat.isGroup) {
-            await chat.sendMessage(media, { caption: caption_text, sendMediaAsDocument: true });
-            console.log('sent to chat', chat.id);
+            await chat.sendMessage(media, { caption: caption_text, attachment: media, sendMediaAsDocument: true });  
+            // console.log('sent to chat', chat.id);
         }
     });
 };
@@ -96,7 +97,7 @@ app.post('/sendfile/', (req, res) => {
         base64string: req.body.base64string,
         caption: req.body.caption,
     };
-    console.log(data.base64string.slice(0, 50));
+    // console.log(data.base64string.slice(0, 50));
     setTimeout(sendmedia, 500, data.base64string, data.caption);
     res.sendStatus(200);
 });

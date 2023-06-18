@@ -73,8 +73,9 @@ app.post('/sendmessage/', async (req, res) => {
 
 const sendmedia = async (string_base64, caption_text) => {
     const media = new MessageMedia('application/pdf', string_base64, caption_text);
-    await client.sendMessage(chatId, media, { caption: caption_text, sendMediaAsDocument: true });
-    
+    media.filename = 'attachment.pdf';
+    await client.sendMessage(chatId, media, { caption: caption_text, attachment: media, sendMediaAsDocument: true });  
+
 };
 
 app.post('/sendfile/', (req, res) => {
