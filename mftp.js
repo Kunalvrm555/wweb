@@ -48,6 +48,25 @@ client.on('message', async (message) => {
     const chat = await message.getChat(); //obtain chat details in which message is received
     if (message.body == 'hi') {
         chat.sendMessage('Hello');
+    } else if (message.body.startsWith('add ')) {
+        const chat = await message.getChat();
+        if (chat.id._serialized == chatId) {
+            const groupId = '120363148894935956@g.us';
+            try {
+                const group = await client.getChatById(groupId);
+                const number = message.body.split(' ')[1];
+                const participantId = `91${number}@c.us`;
+                console.log(participantId);
+                const result = await group.addParticipants([participantId]);
+                console.log(result);
+                message.reply(result[participantId].message);
+            } catch (error) {
+                console.error('Error while adding participant:', error);
+                message.reply(error.message);
+            }
+        } else {
+            chat.sendMessage('You are not authorized to add participants');
+        }
     }
 });
 
@@ -80,13 +99,25 @@ app.post('/sendmessage/', async (req, res) => {
 });
 
 const sendmedia = async (string_base64, caption_text) => {
-    const media = new MessageMedia('application/pdf', string_base64, caption_text);
+    const media = new MessageMedia(
+        'application/pdf',
+        string_base64,
+        caption_text
+    );
     media.filename = 'attachment.pdf';
-    await client.sendMessage(chatId, media, { caption: caption_text, attachment: media, sendMediaAsDocument: true });  
+    await client.sendMessage(chatId, media, {
+        caption: caption_text,
+        attachment: media,
+        sendMediaAsDocument: true,
+    });
     const chats = await client.getChats();
     chats.forEach(async (chat) => {
         if (chat.isGroup) {
-            await chat.sendMessage(media, { caption: caption_text, attachment: media, sendMediaAsDocument: true });  
+            await chat.sendMessage(media, {
+                caption: caption_text,
+                attachment: media,
+                sendMediaAsDocument: true,
+            });
             // console.log('sent to chat', chat.id);
         }
     });
