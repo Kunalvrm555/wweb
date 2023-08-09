@@ -91,6 +91,28 @@ client.on('message', async msg => {
         } catch (e) {
             msg.reply('That invite code seems to be invalid.');
         }
+    } else if (msg.body.startsWith('!addmembers')) {
+        const group = await msg.getChat();
+        const result = await group.addParticipants(['number1@c.us', 'number2@c.us']);
+        /**
+         * The example of the {@link result} output:
+         * {
+         *     'number1@c.us': {
+         *         code: 403,
+         *         message: 'The participant can be added by sending private invitation only',
+         *         isInviteV4Sent: true
+         *     },
+         *     'number2@c.us': {
+         *         code: 200,
+         *         message: 'The participant was added successfully',
+         *         isInviteV4Sent: false
+         *     }
+         * }
+         * 
+         * For more usage examples:
+         * @see https://github.com/pedroslopez/whatsapp-web.js/pull/2344#usage-example
+         */
+        console.log(result);
     } else if (msg.body === '!groupinfo') {
         let chat = await msg.getChat();
         if (chat.isGroup) {

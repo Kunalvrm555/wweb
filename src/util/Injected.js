@@ -17,6 +17,7 @@ exports.ExposeStore = (moduleRaidStr) => {
     window.Store.Invite = window.mR.findModule('resetGroupInviteCode')[0];
     window.Store.InviteInfo = window.mR.findModule('queryGroupInvite')[0];
     window.Store.Label = window.mR.findModule('LabelCollection')[0].LabelCollection;
+    window.Store.ContactCollection = window.mR.findModule('ContactCollection')[0].ContactCollection;
     window.Store.MediaPrep = window.mR.findModule('prepRawMedia')[0];
     window.Store.MediaObject = window.mR.findModule('getOrCreateMediaObject')[0];
     window.Store.NumberInfo = window.mR.findModule('formattedPhoneNumber')[0];
@@ -44,8 +45,6 @@ exports.ExposeStore = (moduleRaidStr) => {
     window.Store.ProfilePic = window.mR.findModule('profilePicResync')[0];
     window.Store.PresenceUtils = window.mR.findModule('sendPresenceAvailable')[0];
     window.Store.ChatState = window.mR.findModule('sendChatStateComposing')[0];
-    window.Store.GroupParticipants = window.mR.findModule('promoteParticipants')[0];
-    window.Store.JoinInviteV4 = window.mR.findModule('queryGroupInviteV4')[0];
     window.Store.findCommonGroups = window.mR.findModule('findCommonGroups')[0].findCommonGroups;
     window.Store.StatusUtils = window.mR.findModule('setMyStatus')[0];
     window.Store.ConversationMsgs = window.mR.findModule('loadEarlierMsgs')[0];
@@ -59,16 +58,28 @@ exports.ExposeStore = (moduleRaidStr) => {
     window.Store.SocketWap = window.mR.findModule('wap')[0];
     window.Store.SearchContext = window.mR.findModule('getSearchContext')[0].getSearchContext;
     window.Store.DrawerManager = window.mR.findModule('DrawerManager')[0].DrawerManager;
+    window.Store.LidUtils = window.mR.findModule('getCurrentLid')[0];
+    window.Store.WidToJid = window.mR.findModule('widToUserJid')[0];
+    window.Store.JidToWid = window.mR.findModule('userJidToUserWid')[0];
     window.Store.StickerTools = {
         ...window.mR.findModule('toWebpSticker')[0],
         ...window.mR.findModule('addWebpMetadata')[0]
     };
-  
     window.Store.GroupUtils = {
         ...window.mR.findModule('createGroup')[0],
         ...window.mR.findModule('setGroupDescription')[0],
         ...window.mR.findModule('sendExitGroup')[0],
         ...window.mR.findModule('sendSetPicture')[0]
+    };
+    window.Store.GroupParticipants = {
+        ...window.mR.findModule('promoteParticipants')[0],
+        sendAddParticipantsRPC:
+            window.mR.findModule('sendAddParticipantsRPC')[0].sendAddParticipantsRPC
+    };
+    window.Store.GroupInviteV4 = {
+        ...window.mR.findModule('queryGroupInviteV4')[0],
+        sendGroupInviteMessage:
+            window.mR.findModule('sendGroupInviteMessage')[0].sendGroupInviteMessage
     };
 
     if (!window.Store.Chat._find) {
@@ -97,6 +108,36 @@ exports.ExposeStore = (moduleRaidStr) => {
     if(_features) {
         window.Store.Features = _features.LegacyPhoneFeatures;
     }
+
+    /**
+     * Target options object description
+     * @typedef {Object} TargetOptions
+     * @property {string|number} moduleId The name or a key of the target module to search
+     * @property {number} index The index value of the target module
+     * @property {string} property The function name to get from a module
+     */
+
+    /**
+     * Function to modify functions
+     * Referenced from and modified:
+     * @see https://github.com/pedroslopez/whatsapp-web.js/pull/1636/commits/81111faa058d8e715285a2bfc9a42636074f7c3d#diff-de25cb4b9105890088bb033eac000d1dd2104d3498a8523082dc7eaf319738b8R75-R78
+     * @param {TargetOptions} target Options specifying the target function to search for modifying
+     * @param {Function} callback Modified function
+     */
+    window.injectToFunction = (target, callback) => {
+        const module = typeof target.moduleId === 'string'
+            ? window.mR.findModule(target.moduleId)
+            : window.mR.modules[target.moduleId];
+        const originalFunction = module[target.index][target.property];
+        const modifiedFunction = (...args) => callback(originalFunction, ...args);
+        module[target.index][target.property] = modifiedFunction;
+    };
+
+    /**
+     * Referenced from and modified:
+     * @see https://github.com/wppconnect-team/wa-js/blob/e19164e83cfa68b828493e6ff046c0a3d46a4942/src/chat/functions/sendLocationMessage.ts#L164
+     */
+    window.injectToFunction({ moduleId: 'typeAttributeFromProtobuf', index: 0, property: 'typeAttributeFromProtobuf' }, (func, ...args) => { const [proto] = args; return proto.groupInviteMessage ? 'text' : func(...args); });
 };
 
 exports.LoadUtils = () => {
@@ -786,6 +827,104 @@ exports.LoadUtils = () => {
             if(err.name === 'ServerStatusCodeError') return false;
             throw err;
         }
+    };
+    
+    window.WWebJS.getProfilePicThumbBase64 = async (chatWid) => {
+        const profilePicCollection = window.Store.ProfilePicThumb.get(chatWid);
+
+        const _readImageAsBase64 = (imageBlob) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = function () {
+                    const base64Image = reader.result;
+                    if (base64Image == null) {
+                        resolve(undefined);
+                    } else {
+                        const base64Data = base64Image.toString().split(',')[1];
+                        resolve(base64Data);
+                    }
+                };
+                reader.readAsDataURL(imageBlob);
+            });
+        };
+
+        if (profilePicCollection?.img) {
+            try {
+                const response = await fetch(profilePicCollection.img);
+                if (response.ok) {
+                    const imageBlob = await response.blob();
+                    if (imageBlob) {
+                        const base64Image = await _readImageAsBase64(imageBlob);
+                        return base64Image;
+                    }
+                }
+            } catch (error) { /* empty */ }
+        }
+        return undefined;
+    };
+
+    window.WWebJS.getAddParticipantsRpcResult = async (chatMetadata, chatWid, participantWid) => {
+        const participantLidArgs = chatMetadata?.isLidAddressingMode
+            ? {
+                phoneNumber: participantWid,
+                lid: window.Store.LidUtils.getCurrentLid(participantWid)
+            }
+            : { phoneNumber: participantWid };
+
+        const iqTo = window.Store.WidToJid.widToGroupJid(chatWid);
+
+        const participantArgs =
+            participantLidArgs.lid
+                ? [{
+                    participantJid: window.Store.WidToJid.widToUserJid(participantLidArgs.lid),
+                    phoneNumberMixinArgs: {
+                        anyPhoneNumber: window.Store.WidToJid.widToUserJid(participantLidArgs.phoneNumber)
+                    }
+                }]
+                : [{
+                    participantJid: window.Store.WidToJid.widToUserJid(participantLidArgs.phoneNumber)
+                }];
+
+        let result, participant;
+        const data = {
+            name: undefined,
+            code: undefined,
+            message: undefined,
+            inviteV4Code: undefined,
+            inviteV4CodeExp: undefined
+        };
+
+        try {
+            result = await window.Store.GroupParticipants.sendAddParticipantsRPC({ participantArgs, iqTo });
+            [participant] = result.value.addParticipant;
+        } catch (err) {
+            data.code = -1;
+            data.message = 'SmaxParsingFailure: failed to parse the response of <AddParticipants>';
+            return data;
+        }
+
+        if (result.name === 'AddParticipantsResponseSuccess') {
+            const participantMixins = participant.addParticipantsParticipantMixins;
+            const code = participantMixins?.value.error ?? '200';
+            data.name = participantMixins?.name;
+            data.code = +code;
+            data.inviteV4Code = participantMixins?.value.addRequestCode;
+            data.inviteV4CodeExp = participantMixins?.value.addRequestExpiration?.toString();
+        }
+
+        else if (result.name === 'AddParticipantsResponseClientError') {
+            const { code: code, text: message } = result.value.errorAddParticipantsClientErrors.value;
+            data.code = +code;
+            data.message = message;
+        }
+
+        else if (result.name === 'AddParticipantsResponseServerError') {
+            const { code: code, text: message } = result.value.errorServerErrors.value;
+            data.code = +code;
+            data.message = message;
+        }
+
+        return data;
     };
 
     /**
