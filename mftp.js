@@ -52,15 +52,17 @@ client.on('message', async (message) => {
         const chat = await message.getChat();
         if (message.body == 'hi') {
             chat.sendMessage('Hello');
-        } else if (message.body.startsWith('add ')) {
+        } else if (message.body.startsWith('+91')) {
             if (chat.id._serialized == chatId) {
                 const groupId = '120363148894935956@g.us';
                 try {
                     const group = await client.getChatById(groupId);
-                    const number = message.body.split(' ')[1];
-                    const participantId = `91${number}@c.us`;
-                    const result = await group.addParticipants([participantId]);
-                    message.reply(result[participantId].message);
+                    const number = message.body.replace(/\s/g, '').slice(1);
+                    
+                    // const participantId = `${number}@c.us`;
+                    // const result = await group.addParticipants([participantId]);
+                    // message.reply(result[participantId].message);
+                    message.reply(number);
                 } catch (error) {
                     console.error('Error while adding participant:', error);
                     message.reply(error.message);

@@ -9,7 +9,7 @@ exports.ExposeStore = (moduleRaidStr) => {
     window.Store.AppState = window.mR.findModule('Socket')[0].Socket;
     window.Store.Conn = window.mR.findModule('Conn')[0].Conn;
     window.Store.BlockContact = window.mR.findModule('blockContact')[0];
-    // window.Store.Call = window.mR.findModule('CallCollection')[0].CallCollection;
+    window.Store.Call = window.mR.findModule('Call')[0].default.Call;
     window.Store.Cmd = window.mR.findModule('Cmd')[0].Cmd;
     window.Store.CryptoLib = window.mR.findModule('decryptE2EMedia')[0];
     window.Store.DownloadManager = window.mR.findModule('downloadManager')[0].downloadManager;
@@ -76,6 +76,11 @@ exports.ExposeStore = (moduleRaidStr) => {
         sendAddParticipantsRPC:
             window.mR.findModule('sendAddParticipantsRPC')[0].sendAddParticipantsRPC
     };
+    if (window.mR.findModule('ChatCollection')[0] && window.mR.findModule('ChatCollection')[0].ChatCollection) {
+        if (typeof window.mR.findModule('ChatCollection')[0].ChatCollection.findImpl === 'undefined' && typeof window.mR.findModule('ChatCollection')[0].ChatCollection._find != 'undefined') {
+            window.mR.findModule('ChatCollection')[0].ChatCollection.findImpl = window.mR.findModule('ChatCollection')[0].ChatCollection._find;
+        }
+    }
     window.Store.GroupInviteV4 = {
         ...window.mR.findModule('queryGroupInviteV4')[0],
         sendGroupInviteMessage:
